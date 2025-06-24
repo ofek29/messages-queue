@@ -7,6 +7,7 @@ A simple Java-based message queue implementation with file storage.
 - **Thread-safe message queue** using `BlockingQueue`
 - **Unique message IDs** - automatically generated UUIDs for each message
 - **File-based storage** - messages survive application restarts
+- **Producer/Consumer pattern** - separate classes for producing and consuming messages
 
 ## Classes
 
@@ -30,9 +31,23 @@ The main messages queue implementation with:
 - Automatic file loading on startup
 - Saves messages to a specified file
 
+### [`Producer`](src/main/java/com/ofek/queue/Producer.java)
+
+Handles message production with:
+
+- `produce(String payload)` - creates and enqueues a new message
+- Wraps the message creation and enqueuing process
+
+### [`Consumer`](src/main/java/com/ofek/queue/Consumer.java)
+
+Handles message consumption with:
+
+- `poll()` - retrieves and returns the next message from the queue
+- Wraps the message dequeuing process
+
 ### [`App`](src/main/java/com/ofek/queue/App.java)
 
-Demo application showing basic usage
+Demo application showing producer/consumer usage pattern
 
 ## Usage
 
@@ -40,11 +55,17 @@ Demo application showing basic usage
 // Create a message queue with file storage
 MessageQueue queue = new MessageQueue("messages.log");
 
-// Add messages
-queue.enqueue(new Message("Hello, World!"));
+// Create producer and consumer
+Producer producer = new Producer(queue);
+Consumer consumer = new Consumer(queue);
 
-// Retrieve messages
-Message delivered = queue.dequeue();
+// Produce messages
+producer.produce("Hello, World!");
+producer.produce("Second message");
+
+// Consume messages
+Message delivered = consumer.poll();
+System.out.println("Delivered: " + delivered);
 
 // Check queue size
 int size = queue.size();
