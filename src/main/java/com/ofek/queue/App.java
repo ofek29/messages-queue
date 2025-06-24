@@ -4,12 +4,21 @@ public class App {
     public static void main(String[] args) {
         MessageQueue queue = new MessageQueue("messages.log");
 
-        queue.enqueue(new Message("Hello, World!"));
+        // Create producer and consumer instances
+        Producer producer = new Producer(queue);
+        Consumer consumer = new Consumer(queue);
 
-        Message delivered = queue.dequeue();
-        System.out.println("Delivered: " + delivered);
+        producer.produce("Hello, World!");
+        producer.produce("Second message");
+        producer.produce("Third message");
+
+        // Loop to poll all messages
+        System.out.println("Polling messages:");
+        while (queue.size() > 0) {
+            Message delivered = consumer.poll();
+            System.out.println("Delivered: " + delivered);
+        }
 
         System.out.println("Queue size: " + queue.size());
-
     }
 }
