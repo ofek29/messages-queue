@@ -15,9 +15,14 @@ import java.util.concurrent.TimeUnit;
 
 public class PerformanceTest {
 
-    private static final String PERFORMANCE_REPORT_FILE = "performance_report.log";
+    private static final String PERFORMANCE_REPORT_FILE = "logs/performance_report.log";
     private static final int[] MESSAGE_COUNTS = { 1000, 10000, 100000, 1000000 };
-    private static final int THREAD_COUNT = 10;
+
+    // Intelligent thread count based on system capabilities
+    private static final int CPU_CORES = Runtime.getRuntime().availableProcessors();
+    private static final int THREAD_COUNT = CPU_CORES * 2;
+
+    private static final String PAYLOAD = generatePayload(100);
 
     public static void main(String[] args) {
         PerformanceTest test = new PerformanceTest();
@@ -32,6 +37,10 @@ public class PerformanceTest {
     public void runAllTests() throws IOException {
         System.out.println("Starting Performance Tests...");
         System.out.println("=================================");
+        System.out.println("System Info:");
+        System.out.println("  CPU Cores: " + CPU_CORES);
+        System.out.println("  Thread Count: " + THREAD_COUNT);
+        System.out.println("=================================");
 
         // Initialize report file
         initializeReportFile();
@@ -44,11 +53,9 @@ public class PerformanceTest {
 
         // Run multi-threaded tests
         for (int messageCount : MESSAGE_COUNTS) {
-            if (messageCount <= 100000) { // Limit multi-threaded tests to avoid excessive load
-                System.out.println(
-                        "\nTesting with " + messageCount + " messages (Multi-threaded, " + THREAD_COUNT + " threads):");
-                runMultiThreadedTest(messageCount);
-            }
+            System.out.println(
+                    "\nTesting with " + messageCount + " messages (Multi-threaded, " + THREAD_COUNT + " threads):");
+            runMultiThreadedTest(messageCount);
         }
 
         System.out.println("\nPerformance tests completed. Results saved to: " + PERFORMANCE_REPORT_FILE);
@@ -58,14 +65,14 @@ public class PerformanceTest {
         // Clean up any existing messages file
         cleanupMessagesFile();
 
-        MessageQueue queue = new MessageQueue("messages_perf_test.log");
+        MessageQueue queue = new MessageQueue("logs/messages_perf_test.log");
         Producer producer = new Producer(queue);
         Consumer consumer = new Consumer(queue);
 
         // Test enqueue performance
         long startTime = System.nanoTime();
         for (int i = 0; i < messageCount; i++) {
-            producer.produce("Test message " + i + " - " + generatePayload(100));
+            producer.produce(PAYLOAD);
         }
         long enqueueTime = System.nanoTime() - startTime;
 
@@ -97,6 +104,7 @@ public class PerformanceTest {
                 throughputMsg);
 
         // Clean up
+        queue.shutdown();
         cleanupMessagesFile();
     }
 
@@ -104,7 +112,7 @@ public class PerformanceTest {
         // Clean up any existing messages file
         cleanupMessagesFile();
 
-        MessageQueue queue = new MessageQueue("messages_perf_test.log");
+        MessageQueue queue = new MessageQueue("logs/messages_perf_test.log");
         ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT * 2); // Producers + Consumers
 
         int messagesPerThread = messageCount / THREAD_COUNT;
@@ -114,11 +122,10 @@ public class PerformanceTest {
 
         // Start producer threads
         for (int t = 0; t < THREAD_COUNT; t++) {
-            final int threadId = t;
             Future<?> future = executor.submit(() -> {
                 Producer producer = new Producer(queue);
                 for (int i = 0; i < messagesPerThread; i++) {
-                    producer.produce("Thread-" + threadId + " message " + i + " - " + generatePayload(100));
+                    producer.produce(PAYLOAD);
                 }
             });
             futures.add(future);
@@ -163,6 +170,7 @@ public class PerformanceTest {
 
         long dequeueTime = System.nanoTime() - startTime;
 
+        queue.shutdown();
         executor.shutdown();
         try {
             executor.awaitTermination(30, TimeUnit.SECONDS);
@@ -190,7 +198,7 @@ public class PerformanceTest {
         cleanupMessagesFile();
     }
 
-    private String generatePayload(int length) {
+    private static String generatePayload(int length) {
         StringBuilder sb = new StringBuilder(length);
         for (int i = 0; i < length; i++) {
             sb.append((char) ('A' + (i % 26)));
@@ -200,7 +208,7 @@ public class PerformanceTest {
 
     private void cleanupMessagesFile() {
         try {
-            Files.deleteIfExists(Path.of("messages_perf_test.log"));
+            Files.deleteIfExists(Path.of("logs/messages_perf_test.log"));
         } catch (IOException e) {
             System.err.println("Error cleaning up messages file: " + e.getMessage());
         }
