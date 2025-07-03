@@ -4,6 +4,9 @@ echo "Message Queue Performance Test"
 echo "=============================="
 echo
 
+# Optimized GC settings for message queue workload
+export MAVEN_OPTS="-Xms2g -Xmx4g -XX:+UseG1GC -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=2m -XX:+G1UseAdaptiveIHOP -XX:G1MixedGCCountTarget=4 -Xlog:gc*:logs/gc.log"
+
 # Clean and compile the project
 echo "Compiling project..."
 mvn clean compile test-compile -q
@@ -21,7 +24,9 @@ echo "Starting performance test..."
 echo
 
 # Run the test
-mvn exec:java -Dexec.mainClass="com.ofek.queue.PerformanceTest" -Dexec.classpathScope="test" -q
+mvn exec:java \
+-Dexec.mainClass="com.ofek.queue.PerformanceTest" \
+-Dexec.classpathScope="test"
 
 if [ $? -eq 0 ]; then
     echo
