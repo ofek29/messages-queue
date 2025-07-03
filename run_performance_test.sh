@@ -4,7 +4,7 @@ echo "Message Queue Performance Test"
 echo "=============================="
 echo
 
-# Optimized GC settings for message queue workload
+# Optimized GC, Heap and others Java settings
 export MAVEN_OPTS="-Xms2g -Xmx4g -XX:+UseG1GC -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=2m -XX:+G1UseAdaptiveIHOP -XX:G1MixedGCCountTarget=4 -Xlog:gc*:logs/gc.log"
 
 # Clean and compile the project
