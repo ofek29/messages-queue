@@ -14,6 +14,18 @@ public class MessageQueue {
     private final Path messagesFilePath;
 
     public MessageQueue(String filename) {
+        this(filename, 100, false); // Default: batch size 100, no console logging
+    }
+
+    /**
+     * Creates a MessageQueue with custom configuration
+     * 
+     * @param filename             The file to persist messages to
+     * @param batchSize            Number of messages to batch before writing to
+     *                             file
+     * @param enableConsoleLogging Whether to log enqueue operations to console
+     */
+    public MessageQueue(String filename, int batchSize, boolean enableConsoleLogging) {
         this.messagesFilePath = Path.of(filename);
         loadMessagesFromFile();
     }
@@ -29,16 +41,83 @@ public class MessageQueue {
     }
 
     public int size() {
-        return queue.size();
+        lock.readLock().lock();
+        try {
+            return queue.size();
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 
-    private void saveMessageToFile(Message message) {
+    /**
+     * Forces all pending messages to be written to disk.
+     * This method blocks until all messages are persisted.
+     */
+    public void flush() {
+        // Force persistence of all pending messages
+        synchronized (persistenceQueue) {
+            while (!persistenceQueue.isEmpty()) {
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Shuts down the message queue, ensuring all messages are persisted.
+     * Call this method before application shutdown.
+     */
+    public void shutdown() {
+        flush();
+        persistenceExecutor.shutdown();
+    }
+
+    private void startPersistenceWorker() {
+        persistenceExecutor.submit(() -> {
+            List<Message> batch = new ArrayList<>();
+
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    // Collect messages in batches
+                    Message message = persistenceQueue.take(); // Blocking
+                    batch.add(message);
+
+                    // Collect more messages if available (up to batch size)
+                    while (batch.size() < batchSize && !persistenceQueue.isEmpty()) {
+                        Message additional = persistenceQueue.poll();
+                        if (additional != null) {
+                            batch.add(additional);
+                        }
+                    }
+
+                    // Write batch to file
+                    saveBatchToFile(batch);
+                    batch.clear();
+
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                } catch (Exception e) {
+                    System.err.println("Error in persistence worker: " + e.getMessage());
+                }
+            }
+        });
+    }
+
+    private void saveBatchToFile(List<Message> messages) {
+        if (messages.isEmpty())
+            return;
+
         try (BufferedWriter writer = Files.newBufferedWriter(
                 messagesFilePath, StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
             writer.write(message.getId() + "|" + message.getPayload());
             writer.newLine();
         } catch (IOException e) {
-            System.out.println("Error saving message to file: " + e.getMessage());
+            System.err.println("Error saving messages to file: " + e.getMessage());
         }
     }
 
