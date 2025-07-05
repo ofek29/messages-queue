@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 public class PerformanceTest {
 
     private static final String PERFORMANCE_REPORT_FILE = "logs/performance_report.log";
+    private static final String PERF_TEST_MESSAGES_DIR = "logs/perf_test_messages";
     private static final int[] MESSAGE_COUNTS = { 1000, 10000, 100000, 1000000 };
 
     // Intelligent thread count based on system capabilities
@@ -42,8 +43,9 @@ public class PerformanceTest {
         System.out.println("  Thread Count: " + THREAD_COUNT);
         System.out.println("=================================");
 
-        // Initialize report file
+        // Initialize report file and create performance test messages directory
         initializeReportFile();
+        createPerformanceTestDirectory();
 
         // Run single-threaded tests
         for (int messageCount : MESSAGE_COUNTS) {
@@ -59,13 +61,17 @@ public class PerformanceTest {
         }
 
         System.out.println("\nPerformance tests completed. Results saved to: " + PERFORMANCE_REPORT_FILE);
+        System.out.println("Message files saved to: " + PERF_TEST_MESSAGES_DIR);
     }
 
     private void runSingleThreadedTest(int messageCount) throws IOException {
-        // Clean up any existing messages file
-        cleanupMessagesFile();
+        // Create unique filename for this test run
+        String testFileName = String.format("%s/single_threaded_%d_messages.log", PERF_TEST_MESSAGES_DIR, messageCount);
 
-        MessageQueue queue = new MessageQueue("logs/messages_perf_test.log");
+        // Clean up any existing messages file
+        cleanupMessagesFile(testFileName);
+
+        MessageQueue queue = new MessageQueue(testFileName);
         Producer producer = new Producer(queue);
         Consumer consumer = new Consumer(queue);
 
@@ -98,21 +104,26 @@ public class PerformanceTest {
                 "Messages: %,d | Enqueue: %.2f ms | Dequeue: %.2f ms | Total: %.2f ms | Throughput: %.2f msg/sec | Processed: %d",
                 messageCount, enqueueTimeMs, dequeueTimeMs, totalTimeMs, throughputMsg, processedMessages);
         System.out.println(results);
+        System.out.println("Message file saved: " + testFileName);
 
         // Save to report
         saveToReport("SINGLE-THREADED TEST", messageCount, results, enqueueTimeMs, dequeueTimeMs, totalTimeMs,
-                throughputMsg);
+                throughputMsg, testFileName);
 
         // Clean up
         queue.shutdown();
-        cleanupMessagesFile();
+        // Note: We don't delete the message file anymore so you can inspect it
     }
 
     private void runMultiThreadedTest(int messageCount) throws IOException {
-        // Clean up any existing messages file
-        cleanupMessagesFile();
+        // Create unique filename for this test run
+        String testFileName = String.format("%s/multi_threaded_%d_threads_%d_messages.log", PERF_TEST_MESSAGES_DIR,
+                THREAD_COUNT, messageCount);
 
-        MessageQueue queue = new MessageQueue("logs/messages_perf_test.log");
+        // Clean up any existing messages file
+        cleanupMessagesFile(testFileName);
+
+        MessageQueue queue = new MessageQueue(testFileName);
         ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT * 2); // Producers + Consumers
 
         int messagesPerThread = messageCount / THREAD_COUNT;
@@ -189,13 +200,13 @@ public class PerformanceTest {
                 "Messages: %,d | Threads: %d | Enqueue: %.2f ms | Dequeue: %.2f ms | Total: %.2f ms | Throughput: %.2f msg/sec",
                 messageCount, THREAD_COUNT, enqueueTimeMs, dequeueTimeMs, totalTimeMs, throughputMsg);
         System.out.println(results);
+        System.out.println("Message file saved: " + testFileName);
 
         // Save to report
         saveToReport("MULTI-THREADED TEST (" + THREAD_COUNT + " threads)", messageCount, results, enqueueTimeMs,
-                dequeueTimeMs, totalTimeMs, throughputMsg);
+                dequeueTimeMs, totalTimeMs, throughputMsg, testFileName);
 
-        // Clean up
-        cleanupMessagesFile();
+        // Note: We don't delete the message file anymore so you can inspect it
     }
 
     private static String generatePayload(int length) {
@@ -206,11 +217,19 @@ public class PerformanceTest {
         return sb.toString();
     }
 
-    private void cleanupMessagesFile() {
+    private void cleanupMessagesFile(String filePath) {
         try {
-            Files.deleteIfExists(Path.of("logs/messages_perf_test.log"));
+            Files.deleteIfExists(Path.of(filePath));
         } catch (IOException e) {
             System.err.println("Error cleaning up messages file: " + e.getMessage());
+        }
+    }
+
+    private void createPerformanceTestDirectory() throws IOException {
+        Path perfTestDir = Path.of(PERF_TEST_MESSAGES_DIR);
+        if (!Files.exists(perfTestDir)) {
+            Files.createDirectories(perfTestDir);
+            System.out.println("Created performance test messages directory: " + PERF_TEST_MESSAGES_DIR);
         }
     }
 
@@ -238,12 +257,13 @@ public class PerformanceTest {
 
     private void saveToReport(String testType, int messageCount, String results,
             double enqueueTimeMs, double dequeueTimeMs,
-            double totalTimeMs, double throughputMsg) throws IOException {
+            double totalTimeMs, double throughputMsg, String messageFilePath) throws IOException {
         Path reportPath = Path.of(PERFORMANCE_REPORT_FILE);
 
         String report = String.format(
                 "%s\n" +
                         "Message Count: %,d\n" +
+                        "Message File: %s\n" +
                         "Results: %s\n" +
                         "Detailed Metrics:\n" +
                         "  - Enqueue Time: %.2f ms (%.2f msg/sec)\n" +
@@ -253,6 +273,7 @@ public class PerformanceTest {
                         "  - Memory Usage: %,d MB\n\n",
                 testType,
                 messageCount,
+                messageFilePath,
                 results,
                 enqueueTimeMs, messageCount / (enqueueTimeMs / 1000.0),
                 dequeueTimeMs, messageCount / (dequeueTimeMs / 1000.0),
