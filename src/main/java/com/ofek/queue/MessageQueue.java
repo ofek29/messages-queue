@@ -8,6 +8,12 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
 
 public class MessageQueue {
     private final BlockingQueue<Message> queue = new LinkedBlockingQueue<>();
@@ -74,6 +80,20 @@ public class MessageQueue {
     public void shutdown() {
         flush();
         persistenceExecutor.shutdown();
+        try {
+            // Wait for the persistence worker to finish
+            if (!persistenceExecutor.awaitTermination(1, TimeUnit.SECONDS)) {
+                persistenceExecutor.shutdownNow();
+                // Wait a bit more for tasks to respond to being cancelled
+                if (!persistenceExecutor.awaitTermination(2, TimeUnit.SECONDS)) {
+                    System.err.println("Persistence worker did not terminate gracefully");
+                }
+            }
+        } catch (InterruptedException ie) {
+            // Re-interrupt the thread if we were interrupted while waiting
+            persistenceExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 
     private void startPersistenceWorker() {
@@ -95,14 +115,23 @@ public class MessageQueue {
                     }
 
                     // Write batch to file
+                    if (batch.size() >= batchSize) {
+                        saveBatchToFile(batch);
+                    }
+                }
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                System.err.println("Error in persistence worker: " + e.getMessage());
+            } finally {
+                // Ensure any remaining messages are saved
+                if (!batch.isEmpty()) {
                     saveBatchToFile(batch);
-                    batch.clear();
-
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                } catch (Exception e) {
-                    System.err.println("Error in persistence worker: " + e.getMessage());
+                }
+                if (!persistenceQueue.isEmpty()) {
+                    List<Message> remainingMessages = new ArrayList<>();
+                    persistenceQueue.drainTo(remainingMessages);
+                    saveBatchToFile(remainingMessages);
                 }
             }
         });
