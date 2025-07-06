@@ -13,6 +13,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
 
 public class MessageQueue {
     private final BlockingQueue<Message> queue = new LinkedBlockingQueue<>();
@@ -103,6 +104,20 @@ public class MessageQueue {
      */
     public void shutdown() {
         persistenceExecutor.shutdown();
+        try {
+            // Wait for the persistence worker to finish
+            if (!persistenceExecutor.awaitTermination(1, TimeUnit.SECONDS)) {
+                persistenceExecutor.shutdownNow();
+                // Wait a bit more for tasks to respond to being cancelled
+                if (!persistenceExecutor.awaitTermination(2, TimeUnit.SECONDS)) {
+                    System.err.println("Persistence worker did not terminate gracefully");
+                }
+            }
+        } catch (InterruptedException ie) {
+            // Re-interrupt the thread if we were interrupted while waiting
+            persistenceExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 
     private void startPersistenceWorker() {
@@ -124,7 +139,7 @@ public class MessageQueue {
             } catch (Exception e) {
                 System.err.println("Error in persistence worker: " + e.getMessage());
             } finally {
-                // Ensure any remaining messages in the batch are saved
+                // Ensure any remaining messages are saved
                 if (!batch.isEmpty()) {
                     saveBatchToFile(batch);
                 }
