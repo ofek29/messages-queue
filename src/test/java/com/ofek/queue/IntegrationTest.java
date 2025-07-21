@@ -52,7 +52,7 @@ public class IntegrationTest {
         for (int i = 0; i < consumeCount; i++) {
             Message message = batchConsumer.poll();
             assertNotNull(message);
-            assertEquals("Workflow message " + i, message.getPayload());
+            assertEquals("Workflow message " + i, message.getPayloadAsString());
         }
 
         assertEquals(messageCount - consumeCount, batchQueue.size());
@@ -78,7 +78,7 @@ public class IntegrationTest {
         for (int i = 0; i < messageCount; i++) {
             Message message = recoveredConsumer.poll();
             assertNotNull(message);
-            assertEquals("Workflow message " + i, message.getPayload());
+            assertEquals("Workflow message " + i, message.getPayloadAsString());
         }
 
         recoveredQueue.shutdown();
@@ -176,7 +176,7 @@ public class IntegrationTest {
         for (int i = 0; i < consumedInPhase1; i++) {
             Message message = initialConsumer.poll();
             assertNotNull(message);
-            assertEquals("Restart test message " + i, message.getPayload());
+            assertEquals("Restart test message " + i, message.getPayloadAsString());
         }
 
         // Simulate system shutdown
@@ -195,7 +195,7 @@ public class IntegrationTest {
         for (int i = 0; i < messageCount; i++) {
             Message message = restartedConsumer.poll();
             assertNotNull(message);
-            assertEquals("Restart test message " + i, message.getPayload());
+            assertEquals("Restart test message " + i, message.getPayloadAsString());
         }
 
         assertEquals(0, restartedQueue.size());
@@ -261,19 +261,19 @@ public class IntegrationTest {
 
         // Consume and verify
         Message msg1 = mixedConsumer.poll();
-        assertEquals("Short", msg1.getPayload());
+        assertEquals("Short", msg1.getPayloadAsString());
 
         Message msg2 = mixedConsumer.poll();
-        assertEquals("Medium length message with some content", msg2.getPayload());
+        assertEquals("Medium length message with some content", msg2.getPayloadAsString());
 
         Message msg3 = mixedConsumer.poll();
-        assertEquals(longMessage.toString(), msg3.getPayload());
+        assertEquals(longMessage.toString(), msg3.getPayloadAsString());
 
         Message msg4 = mixedConsumer.poll();
-        assertEquals("", msg4.getPayload());
+        assertEquals("", msg4.getPayloadAsString());
 
         Message msg5 = mixedConsumer.poll();
-        assertEquals("Final message", msg5.getPayload());
+        assertEquals("Final message", msg5.getPayloadAsString());
 
         assertEquals(0, mixedQueue.size());
 

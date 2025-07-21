@@ -41,7 +41,7 @@ public class ProducerTest {
 
         Message message = messageQueue.dequeue();
         assertNotNull(message);
-        assertEquals("Test message", message.getPayload());
+        assertEquals("Test message", message.getPayloadAsString());
     }
 
     @Test
@@ -58,7 +58,7 @@ public class ProducerTest {
         for (int i = 0; i < messageCount; i++) {
             Message message = messageQueue.dequeue();
             assertNotNull(message);
-            assertEquals("Message " + i, message.getPayload());
+            assertEquals("Message " + i, message.getPayloadAsString());
         }
     }
 
@@ -71,7 +71,7 @@ public class ProducerTest {
 
         Message message = messageQueue.dequeue();
         assertNotNull(message);
-        assertEquals("", message.getPayload());
+        assertEquals("", message.getPayloadAsString());
     }
 
     @Test
@@ -88,27 +88,7 @@ public class ProducerTest {
 
         Message message = messageQueue.dequeue();
         assertNotNull(message);
-        assertEquals(largePayload.toString(), message.getPayload());
-    }
-
-    @Test
-    @DisplayName("Should generate unique message IDs")
-    void testUniqueMessageIds() {
-        producer.produce("Same payload");
-        producer.produce("Same payload");
-        producer.produce("Same payload");
-
-        Message msg1 = messageQueue.dequeue();
-        Message msg2 = messageQueue.dequeue();
-        Message msg3 = messageQueue.dequeue();
-
-        assertNotNull(msg1);
-        assertNotNull(msg2);
-        assertNotNull(msg3);
-
-        assertNotEquals(msg1.getId(), msg2.getId());
-        assertNotEquals(msg2.getId(), msg3.getId());
-        assertNotEquals(msg1.getId(), msg3.getId());
+        assertEquals(largePayload.toString(), message.getPayloadAsString());
     }
 
     @Test
@@ -121,6 +101,6 @@ public class ProducerTest {
 
         Message message = messageQueue.dequeue();
         assertNotNull(message);
-        assertEquals(specialPayload, message.getPayload());
+        assertEquals(specialPayload, message.getPayloadAsString());
     }
 }

@@ -14,6 +14,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.Base64;
 
 public class MessageQueue {
     private final BlockingQueue<Message> queue = new LinkedBlockingQueue<>();
@@ -159,7 +160,9 @@ public class MessageQueue {
         try (BufferedWriter writer = Files.newBufferedWriter(
                 messagesFilePath, StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
             for (Message message : messages) {
-                writer.write(message.getId() + "|" + message.getPayload());
+                // Encode byte array as Base64 for safe text storage
+                String encodedPayload = Base64.getEncoder().encodeToString(message.getPayload());
+                writer.write(encodedPayload);
                 writer.newLine();
             }
             writer.flush(); // Ensure data is written
@@ -182,14 +185,12 @@ public class MessageQueue {
             String line;
             int loadedCount = 0;
             while ((line = reader.readLine()) != null) {
-                String[] parts = line.split("\\|", 2);
-                if (parts.length == 2) {
-                    String id = parts[0];
-                    String payload = parts[1];
-                    Message message = new Message(id, payload);
-                    queue.offer(message);
-                    loadedCount++;
-                }
+                String encodedPayload = line;
+                // Decode Base64 back to byte array
+                byte[] payload = Base64.getDecoder().decode(encodedPayload);
+                Message message = new Message(payload);
+                queue.offer(message);
+                loadedCount++;
             }
             if (enableConsoleLogging) {
                 System.out.println("Loaded " + loadedCount + " messages from file");

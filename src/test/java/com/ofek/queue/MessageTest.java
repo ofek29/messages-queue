@@ -3,51 +3,18 @@ package com.ofek.queue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import static org.junit.jupiter.api.Assertions.*;
+import java.nio.charset.StandardCharsets;
 
 @DisplayName("Message Tests")
 public class MessageTest {
-
-    @Test
-    @DisplayName("Should create message with auto-generated ID")
-    void testMessageCreationWithAutoId() {
-        String payload = "Test payload";
-        Message message = new Message(payload);
-
-        assertNotNull(message.getId());
-        assertFalse(message.getId().isEmpty());
-        assertEquals(payload, message.getPayload());
-    }
-
-    @Test
-    @DisplayName("Should create message with specified ID")
-    void testMessageCreationWithSpecificId() {
-        String id = "custom-id-123";
-        String payload = "Test payload";
-        Message message = new Message(id, payload);
-
-        assertEquals(id, message.getId());
-        assertEquals(payload, message.getPayload());
-    }
-
-    @Test
-    @DisplayName("Should generate unique IDs for different messages")
-    void testUniqueIdGeneration() {
-        Message message1 = new Message("Same payload");
-        Message message2 = new Message("Same payload");
-        Message message3 = new Message("Same payload");
-
-        assertNotEquals(message1.getId(), message2.getId());
-        assertNotEquals(message2.getId(), message3.getId());
-        assertNotEquals(message1.getId(), message3.getId());
-    }
 
     @Test
     @DisplayName("Should handle empty payload")
     void testEmptyPayload() {
         Message message = new Message("");
 
-        assertNotNull(message.getId());
-        assertEquals("", message.getPayload());
+        assertEquals("", message.getPayloadAsString());
+        assertArrayEquals("".getBytes(StandardCharsets.UTF_8), message.getPayload());
     }
 
     @Test
@@ -60,19 +27,17 @@ public class MessageTest {
 
         Message message = new Message(longPayload.toString());
 
-        assertNotNull(message.getId());
-        assertEquals(longPayload.toString(), message.getPayload());
+        assertEquals(longPayload.toString(), message.getPayloadAsString());
+        assertArrayEquals(longPayload.toString().getBytes(StandardCharsets.UTF_8), message.getPayload());
     }
 
     @Test
     @DisplayName("Should have proper toString representation")
     void testToString() {
-        Message message = new Message("test-id", "test payload");
+        Message message = new Message("test payload");
         String toString = message.toString();
 
-        assertTrue(toString.contains("test-id"));
         assertTrue(toString.contains("test payload"));
-        assertTrue(toString.contains("Message{"));
     }
 
     @Test
@@ -81,7 +46,8 @@ public class MessageTest {
         String specialPayload = "Special chars: !@#$%^&*()_+[]{}|;:,.<>?`~";
         Message message = new Message(specialPayload);
 
-        assertEquals(specialPayload, message.getPayload());
+        assertEquals(specialPayload, message.getPayloadAsString());
+        assertArrayEquals(specialPayload.getBytes(StandardCharsets.UTF_8), message.getPayload());
     }
 
     @Test
@@ -90,15 +56,98 @@ public class MessageTest {
         String payload = "Line 1\nLine 2\tTabbed content\r\nWindows line ending";
         Message message = new Message(payload);
 
-        assertEquals(payload, message.getPayload());
+        assertEquals(payload, message.getPayloadAsString());
+        assertArrayEquals(payload.getBytes(StandardCharsets.UTF_8), message.getPayload());
     }
 
     @Test
-    @DisplayName("Should handle pipe character in payload (potential file format conflict)")
-    void testPipeCharacterInPayload() {
-        String payload = "This|has|pipe|characters";
-        Message message = new Message(payload);
+    @DisplayName("Should handle byte array constructor")
+    void testByteArrayConstructor() {
+        byte[] originalBytes = "Hello World".getBytes(StandardCharsets.UTF_8);
+        Message message = new Message(originalBytes);
 
-        assertEquals(payload, message.getPayload());
+        assertArrayEquals(originalBytes, message.getPayload());
+        assertEquals("Hello World", message.getPayloadAsString());
+    }
+
+    @Test
+    @DisplayName("Should handle empty byte array")
+    void testEmptyByteArray() {
+        byte[] emptyBytes = new byte[0];
+        Message message = new Message(emptyBytes);
+
+        assertArrayEquals(emptyBytes, message.getPayload());
+        assertEquals("", message.getPayloadAsString());
+    }
+
+    @Test
+    @DisplayName("Should handle large byte array")
+    void testLargeByteArray() {
+        byte[] largeBytes = new byte[50000];
+        for (int i = 0; i < largeBytes.length; i++) {
+            largeBytes[i] = (byte) (i % 256);
+        }
+
+        Message message = new Message(largeBytes);
+
+        assertArrayEquals(largeBytes, message.getPayload());
+        assertEquals(50000, message.getPayload().length);
+    }
+
+    @Test
+    @DisplayName("Should handle UTF-8 encoded bytes correctly")
+    void testUtf8EncodedBytes() {
+        String unicodeText = "Hello 世界 🌍 مرحبا";
+        byte[] utf8Bytes = unicodeText.getBytes(StandardCharsets.UTF_8);
+
+        Message message = new Message(utf8Bytes);
+
+        assertArrayEquals(utf8Bytes, message.getPayload());
+        assertEquals(unicodeText, message.getPayloadAsString());
+    }
+
+    @Test
+    @DisplayName("Should handle control characters in byte array")
+    void testControlCharactersInByteArray() {
+        byte[] controlChars = {
+                0, // NULL
+                9, // TAB
+                10, // LF (newline)
+                13, // CR (carriage return)
+                27, // ESC
+                127 // DEL
+        };
+
+        Message message = new Message(controlChars);
+
+        assertArrayEquals(controlChars, message.getPayload());
+        // Should not crash when converting to string
+        String result = message.getPayloadAsString();
+        assertNotNull(result);
+    }
+
+    @Test
+    @DisplayName("Should preserve message immutability")
+    void testMessageImmutability() {
+        byte[] originalBytes = "test".getBytes(StandardCharsets.UTF_8);
+        Message message = new Message(originalBytes);
+
+        // Modify the original array
+        originalBytes[0] = (byte) 'X';
+
+        // Message should not be affected
+        assertNotEquals(originalBytes, message.getPayload());
+    }
+
+    @Test
+    @DisplayName("Should handle byte array vs string constructor equivalence")
+    void testByteArrayStringEquivalence() {
+        String testString = "Test message with special chars: àáâãäå";
+
+        Message messageFromString = new Message(testString);
+        Message messageFromBytes = new Message(testString.getBytes(StandardCharsets.UTF_8));
+
+        assertArrayEquals(messageFromString.getPayload(), messageFromBytes.getPayload());
+        assertEquals(messageFromString.getPayloadAsString(), messageFromBytes.getPayloadAsString());
     }
 }
