@@ -1,37 +1,34 @@
 package com.ofek.queue;
 
 import java.io.Serializable;
-import java.util.UUID;
+import java.nio.charset.StandardCharsets;
 
 public class Message implements Serializable {
-    private final String id;
-    private final String payload;
+    private final byte[] payload;
 
-    // Constructor for new messages (generates new ID)
+    // Constructor for new messages
+    public Message(byte[] payload) {
+        this.payload = payload.clone();
+    }
+
+    // Constructor for String payload
     public Message(String payload) {
-        this.id = UUID.randomUUID().toString();
-        this.payload = payload;
+        this.payload = payload.getBytes(StandardCharsets.UTF_8);
     }
 
-    // Constructor for loading existing messages (preserves original ID)
-    public Message(String id, String payload) {
-        this.id = id;
-        this.payload = payload;
+    public byte[] getPayload() {
+        return payload.clone();
     }
 
-    public String getId() {
-        return id;
-    }
-
-    public String getPayload() {
-        return payload;
+    // Get payload as String
+    public String getPayloadAsString() {
+        return new String(payload, StandardCharsets.UTF_8);
     }
 
     @Override
     public String toString() {
         return "Message{" +
-                "id='" + id + '\'' +
-                ", payload='" + payload + '\'' +
+                ", payload='" + getPayloadAsString() + '\'' +
                 '}';
     }
 }
