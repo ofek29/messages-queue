@@ -41,7 +41,7 @@ public class ConsumerTest {
 
         Message message = consumer.poll();
         assertNotNull(message);
-        assertEquals("Test message", message.getPayload());
+        assertEquals("Test message", message.getPayloadAsString());
         assertEquals(0, messageQueue.size());
     }
 
@@ -59,7 +59,7 @@ public class ConsumerTest {
         for (int i = 0; i < messageCount; i++) {
             Message message = consumer.poll();
             assertNotNull(message);
-            assertEquals("Message " + i, message.getPayload());
+            assertEquals("Message " + i, message.getPayloadAsString());
         }
 
         assertEquals(0, messageQueue.size());
@@ -102,7 +102,7 @@ public class ConsumerTest {
 
         Message msg1 = consumer.poll();
         assertNotNull(msg1);
-        assertEquals("Message 1", msg1.getPayload());
+        assertEquals("Message 1", msg1.getPayloadAsString());
         assertEquals(0, messageQueue.size());
 
         producer.produce("Message 2");
@@ -110,7 +110,7 @@ public class ConsumerTest {
 
         Message msg2 = consumer.poll();
         assertNotNull(msg2);
-        assertEquals("Message 2", msg2.getPayload());
+        assertEquals("Message 2", msg2.getPayloadAsString());
         assertEquals(0, messageQueue.size());
     }
 
@@ -126,7 +126,7 @@ public class ConsumerTest {
 
         Message message = consumer.poll();
         assertNotNull(message);
-        assertEquals(largePayload.toString(), message.getPayload());
+        assertEquals(largePayload.toString(), message.getPayloadAsString());
         assertEquals(0, messageQueue.size());
     }
 
@@ -137,7 +137,7 @@ public class ConsumerTest {
 
         Message message = consumer.poll();
         assertNotNull(message);
-        assertEquals("", message.getPayload());
+        assertEquals("", message.getPayloadAsString());
         assertEquals(0, messageQueue.size());
     }
 
@@ -158,7 +158,7 @@ public class ConsumerTest {
         for (int i = 0; i < consumeCount; i++) {
             Message message = consumer.poll();
             assertNotNull(message);
-            assertEquals("Message " + i, message.getPayload());
+            assertEquals("Message " + i, message.getPayloadAsString());
         }
 
         assertEquals(totalMessages - consumeCount, messageQueue.size());
@@ -167,7 +167,7 @@ public class ConsumerTest {
         for (int i = consumeCount; i < totalMessages; i++) {
             Message message = consumer.poll();
             assertNotNull(message);
-            assertEquals("Message " + i, message.getPayload());
+            assertEquals("Message " + i, message.getPayloadAsString());
         }
 
         assertEquals(0, messageQueue.size());
@@ -181,6 +181,6 @@ public class ConsumerTest {
 
         Message message = consumer.poll();
         assertNotNull(message);
-        assertEquals(specialPayload, message.getPayload());
+        assertEquals(specialPayload, message.getPayloadAsString());
     }
 }
