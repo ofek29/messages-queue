@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Base64;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
@@ -63,9 +64,9 @@ public class MessageQueueTest {
         assertNotNull(second);
         assertNotNull(third);
 
-        assertEquals("First message", first.getPayload());
-        assertEquals("Second message", second.getPayload());
-        assertEquals("Third message", third.getPayload());
+        assertEquals("First message", first.getPayloadAsString());
+        assertEquals("Second message", second.getPayloadAsString());
+        assertEquals("Third message", third.getPayloadAsString());
 
         assertEquals(0, messageQueue.size());
     }
@@ -100,7 +101,7 @@ public class MessageQueueTest {
             Message message = consumer.poll();
             if (message != null) {
                 dequeuedCount++;
-                assertTrue(message.getPayload().startsWith("Random message"));
+                assertTrue(message.getPayloadAsString().startsWith("Random message"));
             }
         }
 
@@ -131,9 +132,8 @@ public class MessageQueueTest {
 
         // Verify file format
         for (int i = 0; i < batchSize; i++) {
-            String line = lines.get(i);
-            assertTrue(line.contains("Batch message " + i));
-            assertTrue(line.contains("|")); // ID|payload format
+            String decodedMessage = new String(Base64.getDecoder().decode(lines.get(i)));
+            assertTrue(decodedMessage.contains("Batch message " + i));
         }
 
         batchQueue.shutdown();
@@ -166,7 +166,8 @@ public class MessageQueueTest {
 
         for (int i = 0; i < messageCount; i++) {
             String line = lines.get(i);
-            assertTrue(line.contains("Small batch message " + i));
+            String decodedMessage = new String(Base64.getDecoder().decode(line));
+            assertTrue(decodedMessage.contains("Small batch message " + i));
         }
     }
 
@@ -195,7 +196,8 @@ public class MessageQueueTest {
 
         for (int i = 0; i < messageCount; i++) {
             String line = lines.get(i);
-            assertTrue(line.contains("Large batch message " + i));
+            String decodedMessage = new String(Base64.getDecoder().decode(line));
+            assertTrue(decodedMessage.contains("Large batch message " + i));
         }
     }
 
@@ -249,7 +251,7 @@ public class MessageQueueTest {
         for (int i = 0; i < 5; i++) {
             Message message = recoveredConsumer.poll();
             assertNotNull(message);
-            assertEquals("Recovery message " + i, message.getPayload());
+            assertEquals("Recovery message " + i, message.getPayloadAsString());
         }
 
         recoveredQueue.shutdown();
@@ -327,33 +329,8 @@ public class MessageQueueTest {
 
         Message message = consumer.poll();
         assertNotNull(message);
-        assertEquals(largePayload.toString(), message.getPayload());
+        assertEquals(largePayload.toString(), message.getPayloadAsString());
         assertEquals(0, messageQueue.size());
-    }
-
-    @Test
-    @DisplayName("Should maintain message uniqueness with UUID")
-    void testMessageIdUniqueness() {
-        producer.produce("Same payload");
-        producer.produce("Same payload");
-        producer.produce("Same payload");
-
-        Message first = consumer.poll();
-        Message second = consumer.poll();
-        Message third = consumer.poll();
-
-        assertNotNull(first);
-        assertNotNull(second);
-        assertNotNull(third);
-
-        // All should have same payload but different IDs
-        assertEquals("Same payload", first.getPayload());
-        assertEquals("Same payload", second.getPayload());
-        assertEquals("Same payload", third.getPayload());
-
-        assertNotEquals(first.getId(), second.getId());
-        assertNotEquals(second.getId(), third.getId());
-        assertNotEquals(first.getId(), third.getId());
     }
 
     @Test
@@ -369,14 +346,15 @@ public class MessageQueueTest {
         // Operations should still work until the queue is fully shut down
         Message message = consumer.poll();
         assertNotNull(message);
-        assertEquals("Before shutdown", message.getPayload());
+        assertEquals("Before shutdown", message.getPayloadAsString());
 
         // check if message saved to file
         assertTrue(Files.exists(testFile));
         try {
             List<String> lines = Files.readAllLines(testFile);
             assertEquals(1, lines.size());
-            assertTrue(lines.get(0).contains("Before shutdown"));
+            String decodedMessage = new String(Base64.getDecoder().decode(lines.get(0)));
+            assertTrue(decodedMessage.contains("Before shutdown"));
         } catch (IOException e) {
             fail("Failed to read from file after shutdown: " + e.getMessage());
         }
