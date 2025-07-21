@@ -12,4 +12,9 @@ public class Producer {
         messageQueue.enqueue(message);
     }
 
+    public void produce(byte[] payload) {
+        Message message = new Message(payload);
+        messageQueue.enqueue(message);
+    }
+
 }
